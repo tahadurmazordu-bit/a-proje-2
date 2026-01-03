@@ -1,4 +1,3 @@
-# a-proje-2
 #  hello world
 body {
   font-family: Arial, sans-serif;
