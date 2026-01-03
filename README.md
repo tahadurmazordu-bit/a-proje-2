@@ -1,222 +1,203 @@
-#  hello world
-body {
-  font-family: Arial, sans-serif;
-  background: #0b1220;
-  color: #e6e6e6;
-  margin: 0;
-}
-
-.container {
-  max-width: 420px;
-  margin: 60px auto;
-  padding: 24px;
-  background: #121a2b;
-  border: 1px solid #1f2a44;
-  border-radius: 14px;
-}
-
-input, button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 10px;
-  border: 1px solid #2a3a60;
-  background: #0b1220;
-  color: #fff;
-  box-sizing: border-box;
-}
-
-button {
-  cursor: pointer;
-  background: #2d6cdf;
-  border: none;
-  font-weight: 600;
-}
-
-button.secondary {
-  background: #223055;
-}
-
-.small {
-  opacity: 0.8;
-  font-size: 14px;
-  margin-top: 12px;
-}
-.error {
-  color: #ff6b6b;
-  margin-top: 10px;
-}
-
-
-
-
-
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Site</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="container">
-    <h1>AI Site</h1>
-    <p class="small">Devam etmek için giriş yap.</p>
-
-    <a href="login.html">
-      <button>Giriş / Kayıt</button>
-    </a>
-  </div>
-</body>
-</html>
-
-
-
-
-
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Giriş</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="container">
-    <h2>Giriş</h2>
-
-    <input id="email" type="email" placeholder="Email (kullanıcı)" />
-    <input id="password" type="password" placeholder="Şifre" />
-
-    <button id="loginBtn">Giriş Yap</button>
-    <button id="signupBtn" class="secondary">Kayıt Ol</button>
-
-    <div id="msg" class="error"></div>
-
-    <p class="small">
-      Not: GitHub Pages’te güvenli giriş için Firebase kullanıyoruz.
-    </p>
-  </div>
-
-  <script type="module" src="auth.js"></script>
-</body>
-</html>
-
-
-
-
-
-
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Panel</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="container">
-    <h2>Hoş geldin</h2>
-    <p id="userInfo" class="small"></p>
-
-    <button id="logoutBtn" class="secondary">Çıkış Yap</button>
-
-    <hr style="border-color:#1f2a44; margin:16px 0">
-
-    <h3>AI Demo</h3>
-    <p class="small">Buraya yapay zeka aracını (chat, resim üretme vs.) ekleyeceğiz.</p>
-  </div>
-
-  <script type="module" src="auth.js"></script>
-</body>
-</html>
-
-
-
-// auth.js (ES Module)
-
-// 1) Firebase SDK (CDN)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
 import {
   getAuth,
-  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  signOut,
+} from "firebase/auth";
+import { getFirestore, collection, addDoc } from "firebase/firestore";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-// 2) Firebase config (BURAYI KENDİ PROJENDEN DOLDUR)
+// 🔥 Firebase Config (KENDİ BİLGİLERİNLE DEĞİŞTİR)
 const firebaseConfig = {
-  apiKey: "XXXX",
-  authDomain: "XXXX.firebaseapp.com",
-  projectId: "XXXX",
-  appId: "XXXX"
+  apiKey: "FIREBASE_API_KEY",
+  authDomain: "PROJECT.firebaseapp.com",
+  projectId: "PROJECT_ID",
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
-// Sayfa tespiti
-const path = location.pathname.split("/").pop(); // login.html, app.html vs.
+const ADMIN_USERNAME = "tahadurmaz";
 
-// Login sayfası
-if (path === "login.html") {
-  const emailEl = document.getElementById("email");
-  const passEl = document.getElementById("password");
-  const msgEl = document.getElementById("msg");
+// 🔐 Şifre kuralı: en az 6 karakter + özel karakter
+const isPasswordValid = (pw: string) => pw.length >= 6 && /[.!@#$%^&*]/.test(pw);
 
-  document.getElementById("loginBtn").addEventListener("click", async () => {
-    msgEl.textContent = "";
+export default function AIPlatformUltimate() {
+  const [page, setPage] = useState<
+    "login" | "register" | "dashboard" | "settings" | "adminSettings" | "logs" | "adminUsers"
+  >("login");
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newAdmin, setNewAdmin] = useState("");
+
+  const [themeColor, setThemeColor] = useState(() => localStorage.getItem("themeColor") || "gray");
+  const [aiProvider, setAiProvider] = useState(() => localStorage.getItem("aiProvider") || "openai");
+  const [maintenance, setMaintenance] = useState(() => localStorage.getItem("maintenance") === "true");
+  const [maintenanceMessage, setMaintenanceMessage] = useState(() =>
+    localStorage.getItem("maintenanceMessage") || "Site güncelleniyor"
+  );
+
+  const [logs, setLogs] = useState<string[]>(() => JSON.parse(localStorage.getItem("logs") || "[]"));
+
+  const [users, setUsers] = useState<{ username: string; password: string }[]>(() =>
+    JSON.parse(localStorage.getItem("users") || "[]")
+  );
+
+  const [admins, setAdmins] = useState<string[]>(() =>
+    JSON.parse(localStorage.getItem("admins") || `["${ADMIN_USERNAME}"]`)
+  );
+
+  const [currentUser, setCurrentUser] = useState<string | null>(() => localStorage.getItem("currentUser"));
+
+  const isAdmin = currentUser ? admins.includes(currentUser) : false;
+
+  // 🧩 Admin paneli ana siteyle entegre (ayrı URL yok)
+  // Admin paneline sadece dashboard içinden girilir
+
+  const addLog = (msg: string) => {
+    const entry = `[${new Date().toLocaleString()}] ${msg}`;
+    setLogs(prev => [entry, ...prev]);
+  };
+
+  useEffect(() => {
+    localStorage.setItem("themeColor", themeColor);
+    localStorage.setItem("aiProvider", aiProvider);
+    localStorage.setItem("maintenance", String(maintenance));
+    localStorage.setItem("maintenanceMessage", maintenanceMessage);
+    localStorage.setItem("logs", JSON.stringify(logs));
+    localStorage.setItem("admins", JSON.stringify(admins));
+    localStorage.setItem("currentUser", currentUser || "");
+    localStorage.setItem("users", JSON.stringify(users));
+  }, [themeColor, aiProvider, maintenance, maintenanceMessage, logs, admins, currentUser, users]);
+
+  const register = async () => {
+    if (!username || !password) return alert("Bilgileri doldur");
+    if (!isPasswordValid(password)) return alert("Şifre geçersiz");
     try {
-      await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
-      location.href = "app.html";
-    } catch (e) {
-      msgEl.textContent = hataMesaji(e);
+      await createUserWithEmailAndPassword(auth, `${username}@site.com`, password);
+      await addDoc(collection(db, "users"), { username, role: "user" });
+      setUsers([...users, { username, password }]);
+      setPage("login");
+    } catch (e: any) {
+      alert(e.message);
     }
-  });
+  };
 
-  document.getElementById("signupBtn").addEventListener("click", async () => {
-    msgEl.textContent = "";
+  const login = async () => {
+    if (maintenance && !isAdmin) return alert("Site bakımda");
     try {
-      await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value);
-      location.href = "app.html";
-    } catch (e) {
-      msgEl.textContent = hataMesaji(e);
+      await signInWithEmailAndPassword(auth, `${username}@site.com`, password);
+      setCurrentUser(username);
+      addLog(`${username} giriş yaptı`);
+      setPage("dashboard");
+    } catch {
+      alert("Giriş hatalı");
     }
-  });
-}
+  };
 
-// App sayfası (korumalı)
-if (path === "app.html") {
-  const userInfo = document.getElementById("userInfo");
-  const logoutBtn = document.getElementById("logoutBtn");
-
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      // giriş yoksa login’e at
-      location.href = "login.html";
-      return;
-    }
-    userInfo.textContent = `Giriş yapan: ${user.email}`;
-  });
-
-  logoutBtn.addEventListener("click", async () => {
+  const logout = async () => {
     await signOut(auth);
-    location.href = "login.html";
-  });
-}
+    setCurrentUser(null);
+    setPage("login");
+  };
 
-// Firebase hata mesajlarını biraz okunur yapalım
-function hataMesaji(e) {
-  const code = e?.code || "";
-  if (code.includes("auth/invalid-email")) return "Email formatı geçersiz.";
-  if (code.includes("auth/invalid-credential")) return "Email veya şifre hatalı.";
-  if (code.includes("auth/user-not-found")) return "Kullanıcı bulunamadı.";
-  if (code.includes("auth/wrong-password")) return "Şifre hatalı.";
-  if (code.includes("auth/email-already-in-use")) return "Bu email zaten kayıtlı.";
-  if (code.includes("auth/weak-password")) return "Şifre çok zayıf (en az 6 karakter).";
-  return "Hata: " + (e?.message || "Bilinmeyen hata");
+  const addAdmin = () => {
+    if (!newAdmin) return alert("Kullanıcı adı gir");
+    if (!users.find(u => u.username === newAdmin)) return alert("Kullanıcı yok");
+    if (admins.includes(newAdmin)) return alert("Zaten admin");
+    setAdmins([...admins, newAdmin]);
+    addLog(`${newAdmin} admin yapıldı`);
+    setNewAdmin("");
+  };
+
+  const removeAdmin = (u: string) => {
+    if (u === ADMIN_USERNAME) return alert("Ana admin kaldırılamaz");
+    setAdmins(admins.filter(a => a !== u));
+    addLog(`${u} adminlikten çıkarıldı`);
+  };
+
+  const changePassword = () => {
+    if (!isPasswordValid(newPassword)) return alert("Şifre geçersiz");
+    setUsers(users.map(u => (u.username === currentUser ? { ...u, password: newPassword } : u)));
+    setNewPassword("");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      {page === "login" && (
+        <Card className="max-w-sm w-full">
+          <CardContent className="p-4 flex flex-col gap-4">
+            <Input placeholder="Kullanıcı Adı" onChange={e => setUsername(e.target.value)} />
+            <Input type="password" placeholder="Şifre" onChange={e => setPassword(e.target.value)} />
+            <Button onClick={login}>Giriş</Button>
+            <Button variant="outline" onClick={() => setPage("register")}>Kaydol</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {page === "register" && (
+        <Card className="max-w-sm w-full">
+          <CardContent className="p-4 flex flex-col gap-4">
+            <Input placeholder="Kullanıcı Adı" onChange={e => setUsername(e.target.value)} />
+            <Input type="password" placeholder="Şifre" onChange={e => setPassword(e.target.value)} />
+            <Button onClick={register}>Kayıt Ol</Button>
+            <Button variant="outline" onClick={() => setPage("login")}>Geri</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {page === "dashboard" && currentUser && (
+        <Card className="max-w-md w-full">
+          <CardContent className="p-4 flex flex-col gap-3">
+            <h1>Hoşgeldin {currentUser}</h1>
+            <Button onClick={() => setPage("settings")}>Ayarlar</Button>
+            {currentUser === ADMIN_USERNAME && (
+              <Button
+                onClick={() => {
+                  
+                  setPage("adminUsers");
+                }}
+              >
+                Admin Yönetimi
+              </Button>
+            )}
+            <Button variant="destructive" onClick={logout}>Çıkış</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {page === "settings" && (
+        <Card className="max-w-md w-full">
+          <CardContent className="p-4 flex flex-col gap-3">
+            <Input type="password" placeholder="Yeni Şifre" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+            <Button onClick={changePassword}>Şifre Değiştir</Button>
+            <Button variant="outline" onClick={() => setPage("dashboard")}>Geri</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {page === "adminUsers" && currentUser === ADMIN_USERNAME && (
+        <Card className="max-w-md w-full">
+          <CardContent className="p-4 flex flex-col gap-3">
+            <Input placeholder="Yeni admin" value={newAdmin} onChange={e => setNewAdmin(e.target.value)} />
+            <Button onClick={addAdmin}>Admin Ekle</Button>
+            {admins.map(a => (
+              <div key={a} className="flex justify-between">
+                <span>{a}</span>
+                {a !== ADMIN_USERNAME && <Button size="sm" onClick={() => removeAdmin(a)}>Sil</Button>}
+              </div>
+            ))}
+            <Button variant="outline" onClick={() => setPage("dashboard")}>Geri</Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }
